@@ -2,7 +2,7 @@ import json
 import logging
 import re
 import sys
-from WeatherBot import api_weather
+import api_weather
 
 from telegram import *
 from telegram.ext import *
@@ -16,62 +16,59 @@ class weather_bot():
 
     # Базовые функции класса
     def __init__(self) -> None:
-        self.cwd = "WeatherBot"
-        self.menu_json_file = "menu.json"
-        self.msg_json_file = "msg.json"
-        self.msg_json_keyboards = "keyboards.json"
         self.YES,self.NO = range(2)
         self.weather_api = api_weather.WeatherAPI()
+        self.bot_menu = self.set_menu_commands()
+        self.bot_msg = self.set_msg()
+        self.bot_keyboards = self.set_keyboards()
 
     def set_token(self, tg_token) -> None:
         self.tg_token = tg_token
 
     def set_menu_commands(self) -> list:
-        
+        json_file_name = "menu.json"
         commands_list = []
 
-        path = ".\\" + self.cwd + "\\" + self.menu_json_file
-
-        with open(path,"r",encoding="utf-8") as json_file:
+        with open(json_file_name,"r",encoding="utf-8") as json_file:
             for cmd in json.loads(json_file.read()):
                 commands_list.append((cmd['cmd'],cmd['description']))
 
         return commands_list
     
-    def set_msg(self,command,*args) -> str:
-        path = ".\\" + self.cwd + "\\" + self.msg_json_file
-
-        with open(path,"r",encoding="utf-8") as json_file:
-            for cmd in json.loads(json_file.read()):
-                if cmd['command'] == command:
-                    msg = str(cmd['message']).format(args)
-                    return msg
-
-        return None
-
-    def set_keyboard(self,command,resize = True) -> list:
-        path = ".\\" + self.cwd + "\\" + self.msg_json_keyboards
-        keyboard = []
-
-        with open(path,"r",encoding="utf-8") as json_file:
-            keyboard_json = json.loads(json_file.read())
-
-            btn_lis = []
-
-            for btn in keyboard_json[command]:
-                
-                if btn['callback_data'] == "YES":
-                    callback_data = self.YES
-                if btn['callback_data'] == "NO":
-                    callback_data = self.NO
-                
-                btn_lis.append(
-                        InlineKeyboardButton(btn['title'],callback_data = callback_data)
-                    )
-            
-            keyboard.append(btn_lis)
+    def set_msg(self) -> dict:
+        json_file_name = "msg.json"
+        msg_dict = dict()
         
-        return (InlineKeyboardMarkup(keyboard))
+        with open(json_file_name,encoding="utf-8") as json_file:
+            for cmd in json.loads(json_file.read()):
+                msg_dict[cmd['command']] = str(cmd['message'])
+
+        return msg_dict
+
+    def set_keyboards(self,resize = True):
+        keyboard = []
+        keyboards_dict = dict()
+        json_file_name = "keyboards.json"
+        
+        with open(json_file_name,"r",encoding="utf-8") as json_file:
+            keyboards_list = json.loads(json_file.read())
+            for key in keyboards_list:
+                btn_list = []
+                
+                for btn in keyboards_list[key]:
+                    if btn['callback_data'] == "YES":
+                        callback_data = self.YES
+                    if btn['callback_data'] == "NO":
+                        callback_data = self.NO
+                        
+                    btn_list.append(
+                        InlineKeyboardButton(
+                            btn['title'],
+                            callback_data = callback_data))
+                    
+                keyboards_dict[key] = InlineKeyboardMarkup([btn_list])
+
+        return keyboards_dict
 
     # Команды для бота
     def start (self, update: Update, context: CallbackContext) -> None:
@@ -82,10 +79,10 @@ class weather_bot():
         logger.info("User %s starts bot session", update.message.from_user.first_name)
         
         #Сообщене приветствия
-        update.message.reply_text(text=self.set_msg("greeting"))
+        update.message.reply_text(text=self.bot_msg['greeting'])
         #Вопрос на продолжение
-        update.message.reply_text(text = self.set_msg("greeting_q"), 
-                                  reply_markup=self.set_keyboard("greeting_q"))
+        update.message.reply_text(text = self.bot_msg['greeting_q'], 
+                                  reply_markup= self.bot_keyboards['greeting_q'])
     
     def start_commit(self, update, context) -> None:
         """
@@ -96,7 +93,7 @@ class weather_bot():
         context.user_data['isStart'] = True
         
         logger.info("User %s starts [start_commit]", query.message.chat.username)
-        query.edit_message_text(text=self.set_msg("start_commit"))
+        query.edit_message_text(text=self.bot_msg['start_commit'])
         
         #Начало запроса города
         self.get_city(query, context)
@@ -106,7 +103,7 @@ class weather_bot():
         Обработка callback = self.NO
         """
         query = update.callback_query
-        query.edit_message_text(text=self.set_msg("start_negative"))
+        query.edit_message_text(text=self.bot_msg['start_negative'])
     
     def end(self, update: Update, context: CallbackContext):
         pass
@@ -115,7 +112,7 @@ class weather_bot():
         logger.info("User starts self.get_city")
         
         #Вывод сообщения на запрос города
-        update.message.reply_text(text=self.set_msg("ask_city"))
+        update.message.reply_text(text=self.bot_msg['ask_city'])
         self.bot_ds.add_handler(MessageHandler(Filters.text, 
                                                self.get_city_msg_handler))
         
@@ -126,10 +123,10 @@ class weather_bot():
         logger.info("User get city %s",context.user_data['user_city'])
         
         if context.user_data['user_city'] is not None:
-            update.message.reply_text(text=self.set_msg("get_city_msg_handler_true",update.message.text))
+            update.message.reply_text(text=self.bot_msg['get_city_msg_handler_true'].format(update.message.text))
             self.get_weather(update, context)
         else: 
-            update.message.reply_text(text=self.set_msg("get_city_msg_handler_false",update.message.text))
+            update.message.reply_text(text=self.bot_msg['get_city_msg_handler_false'].format(update.message.text))
             self.get_city(update, context)
             
     def change_city(self, update, context) -> None:
@@ -146,8 +143,8 @@ class weather_bot():
         self.bot_u = Updater(self.tg_token)
         self.bot_ds = self.bot_u.dispatcher
         
-        #Передается список команд
-        self.bot.set_my_commands(self.set_menu_commands())
+        #Передается список команд для меню
+        self.bot.set_my_commands(self.bot_menu)
         
         #Диалог приветствия start и обработка callback от кнопко Да / Нет
         self.bot_ds.add_handler(CommandHandler('start', self.start))

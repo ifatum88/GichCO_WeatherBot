@@ -3,14 +3,11 @@ import json
 
 class WeatherAPI():
     def __init__(self) -> None:
-        self.cwd = "WeatherBot"
         self.api_keys_jsonfile = "api_keys.json"
         self.api_keys = self.import_apikeys()
         
-    def import_apikeys(self) -> dict:
-        path = ".\\" + self.cwd + "\\" + self.api_keys_jsonfile
-        
-        with open(path,"r",encoding="utf-8") as json_file:
+    def import_apikeys(self) -> dict: 
+        with open(self.api_keys_jsonfile,"r",encoding="utf-8") as json_file:
             return json.loads(json_file.read())
 
     def get_city_by_name(self, city_name:str):

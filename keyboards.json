@@ -8,5 +8,15 @@
       "title": "Нее 🖕",
       "callback_data": "NO"
     }
-  ]
+  ],
+  "test": [
+    {
+      "title": "Конечно! 👊",
+      "callback_data": "YES"
+    },
+    {
+      "title": "Нее 🖕",
+      "callback_data": "NO"
+    }
+  ]  
 }
