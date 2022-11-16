@@ -1,0 +1,12 @@
+{
+  "greeting_q": [
+    {
+      "title": "Конечно! 👊",
+      "callback_data": "YES"
+    },
+    {
+      "title": "Нее 🖕",
+      "callback_data": "NO"
+    }
+  ]
+}

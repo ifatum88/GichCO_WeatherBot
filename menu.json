@@ -1,0 +1,14 @@
+[
+  {
+    "cmd": "start",
+    "description": "Запустить бота 🤖"
+  },
+  {
+    "cmd": "change_city",
+    "description": "Изменить город"
+  },
+  {
+    "cmd": "change_schedule",
+    "description": "Изменить расписание"
+  }
+]
