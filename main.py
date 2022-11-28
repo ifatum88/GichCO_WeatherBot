@@ -74,7 +74,7 @@ class weather_bot():
 
         return msg_dict
 
-    def set_keyboards(self,resize = True):
+    def set_keyboards(self, resize = True):
         """
         Функция читает текст клавиатур
         
@@ -86,6 +86,31 @@ class weather_bot():
         
         with open(json_file_name,"r",encoding="utf-8") as json_file:
             return json.loads(json_file.read())
+        
+    def find_city(self, local_name:str, city_list:list) -> dict:
+        ret = {}
+        
+        if city_list:
+            for i,city in enumerate(city_list):
+                if city['local_name'] == local_name:
+                    ret['key'] = str(i)
+                    ret['city'] = city
+                    break
+
+        return ret
+    
+    def make_city_keyboard_markup(self, context) -> ReplyKeyboardMarkup:
+        
+        #Формируем клавиатуру для вывода списка городов + добавляем кнопку выхода из диалога
+        keyboard = [[KeyboardButton(city['local_name'])] for city in context.user_data['user_city_list']]
+        keyboard.append([KeyboardButton(self.bot_keyboards['get_weather']['back'])])
+        keyboard = ReplyKeyboardMarkup(
+            keyboard = keyboard,
+            one_time_keyboard = True,
+            resize_keyboard = True
+        )
+        
+        return keyboard
 
     # Команды для бота
     def start (self, update: Update, context: CallbackContext) -> int:
@@ -211,8 +236,8 @@ class weather_bot():
             return self.HANDLER
         
         #Проверка на наличие такого города в контексте user_city_list. 
-        #Возвращаем коверсейшн на повторный ввод города
-        if new_city['name'] in list(city['name'] for city in context_users_city_list):
+        #Возвращаем конверсейшн на повторный ввод города
+        if self.find_city(new_city['local_name'], context_users_city_list):
             logger.info("user = %s - Command = %s - Handler = %s - Msg = %s",
                         update.message.chat.username,
                         "set_city_msg_handler",
@@ -230,7 +255,10 @@ class weather_bot():
                     "State = TRUE")
         update.message.reply_text(text=self.bot_msg['get_city_msg_handler_true'].format(new_city['local_name']))
         
-        if context.user_data.get("user_city_pos_to_change"):
+        logger.info("contex = %s",context.user_data)
+        
+        if context.user_data.get('user_city_pos_to_change'):
+            logger.info("i'm here")
             context_users_city_list[int(context.user_data['user_city_pos_to_change'])] = new_city
             del context.user_data['user_city_pos_to_change']
         else:
@@ -253,19 +281,9 @@ class weather_bot():
             "change_city",
             "Command",
             "")
-        
-        keyboard = [[KeyboardButton(city['local_name'])] for city in context.user_data['user_city_list']]
-        #Добавляем кнопку выхода
-        keyboard.append([KeyboardButton(self.bot_keyboards['change_city_disagree']['back'])])
-        
-        keyboard = ReplyKeyboardMarkup(
-            keyboard = keyboard,
-            one_time_keyboard = True,
-            resize_keyboard = True
-        )
 
         update.message.reply_text(text=self.bot_msg['change_city'].format(len(context.user_data['user_city_list'])),
-                                  reply_markup=keyboard
+                                  reply_markup=self.make_city_keyboard_markup(context)
                                   )
         
         return self.INPUT
@@ -299,7 +317,7 @@ class weather_bot():
         
         #Ввел с клавиатуры город, которого нет в списке
         #Отправляем на повторный ввод
-        if update.message.text not in list(city['local_name'] for city in user_city_list):
+        if not self.find_city(update.message.text, user_city_list):
             logger.info("user = %s - Command = %s - Handler = %s - Msg = %s",
                         update.message.chat.username,
                         "change_city_msg_handler",
@@ -317,8 +335,8 @@ class weather_bot():
         update.message.reply_text(text=self.bot_msg['change_city_msg_handler_true'].format(update.message.text))
         
         #Получаем позицию города, который нужно изменить
-        context.user_data['user_city_pos_to_change'] = user_city_list.index(next(filter(lambda n: n.get('local_name') == update.message.text,user_city_list)))
-        
+        context.user_data['user_city_pos_to_change'] = self.find_city(update.message.text, user_city_list).get('key')
+
         #Выходим в обработку ввода
         return self.HANDLER
                 
@@ -354,18 +372,9 @@ class weather_bot():
                     "get_weather_keyboard_handler",
                     "Message",
                     "")
-        
-        #Формируем клавиатуру для вывода списка городов + добавляем кнопку выхода из диалога
-        keyboard = [[KeyboardButton(city['local_name'])] for city in context.user_data['user_city_list']]
-        keyboard.append([KeyboardButton(self.bot_keyboards['get_weather']['back'])])
-        keyboard = ReplyKeyboardMarkup(
-            keyboard = keyboard,
-            one_time_keyboard = True,
-            resize_keyboard = True
-        )
 
         update.message.reply_text(text=self.bot_msg['get_weather_keyboard_handler'],
-                                  reply_markup=keyboard)
+                                  reply_markup=self.make_city_keyboard_markup(context))
         
         #Получаем город и переходим в обработчика get_weather_handler
         return self.HANDLER
@@ -397,7 +406,7 @@ class weather_bot():
             return ConversationHandler.END
         
         # Вручную введен город, которого нет в списке
-        if user_reply not in list(city['local_name'] for city in user_city_list):
+        if not self.find_city(user_reply, user_city_list):
             logger.info("user = %s - Command = %s - Handler = %s - Msg = %s",
                         update.message.chat.username,
                         "get_weather_handler",
@@ -428,16 +437,14 @@ class weather_bot():
             "NO",
             "")
         
-        user_city_list = context.user_data['user_city_list']
-        user_city_pos = user_city_list.index(next(filter(lambda n: n.get('local_name') == update.message.text,user_city_list)))
-        city = context.user_data['user_city_list'][user_city_pos]
-        city_weather_list = self.weather_api.get_weather(city)
+        city = self.find_city(update.message.text, context.user_data['user_city_list'])
+        city_weather_list = self.weather_api.get_weather(city.get('city'))
 
         logger.info("user = %s - Command = %s - Handler = %s - Msg = %s",
             update.message.chat.username,
             "get_weather",
             "NO",
-            "Get city position = " + str( user_city_pos))
+            "Get city position = " + city.get('key'))
         
         logger.info("user = %s - Command = %s - Handler = %s - Msg = %s",
             update.message.chat.username,
@@ -449,10 +456,79 @@ class weather_bot():
         for weather in city_weather_list:
             update.message.reply_text(
                 text=self.bot_msg['get_weather'].format(broker_name=weather['name'],
-                                                        city_name=city['local_name'],
+                                                        city_name=city['city']['local_name'],
                                                         weather= weather['weather'])
                 )
+    
+    def remove_city(self, update: Update, context: CallbackContext) -> int:
+        """
+        Запуск команды удаления города
+        """
+        logger.info("user = %s - Command = %s - Handler = %s - Msg = %s",
+            update.message.chat.username,
+            "remove_city",
+            "Command",
+            "")
+
+        update.message.reply_text(text=self.bot_msg['remove_city'],
+                                  reply_markup=self.make_city_keyboard_markup(context)
+                                  )
         
+        return self.INPUT
+    
+    def remove_city_msg_handler(self, update: Update, context: CallbackContext) -> int:
+        """_
+        Обработчик введенного сообщения с именем города
+        """
+        logger.info("user = %s - Command = %s - Handler = %s - Msg = %s",
+                    update.message.chat.username,
+                    "remove_city_msg_handler",
+                    "Message",
+                    "")
+        
+        user_city_list = context.user_data['user_city_list']
+
+        #ОБРАБОТКА ИСКЛЮЧЕНИЙ
+        
+        #Нажал кнопку "Пока не надо"
+        #Сообщение и завершение диалога
+        if update.message.text == self.bot_keyboards['get_weather']['back']:
+            logger.info("user = %s - Command = %s - Handler = %s - Msg = %s",
+                        update.message.chat.username,
+                        "remove_city_msg_handler",
+                        "Message",
+                        "State = Back")
+            update.message.reply_text(text=self.bot_msg['change_city_msg_handler_back'],
+                                      reply_markup=ReplyKeyboardRemove())
+            self.get_weather_start(update, context)
+            return ConversationHandler.END
+        
+        #Ввел с клавиатуры город, которого нет в списке
+        #Отправляем на повторный ввод
+        if not self.find_city(update.message.text, user_city_list):
+            logger.info("user = %s - Command = %s - Handler = %s - Msg = %s",
+                        update.message.chat.username,
+                        "remove_city_msg_handler",
+                        "Message",
+                        "State = FALSE")
+            update.message.reply_text(text=self.bot_msg['change_city_msg_handler_false'])
+            return self.INPUT
+        
+        #ВСЕ ПРОВЕРКИ ПРОШЛИ УСПЕШНО
+        logger.info("user = %s - Command = %s - Handler = %s - Msg = %s",
+                    update.message.chat.username,
+                    "remove_city_msg_handler",
+                    "Message",
+                    "State = TRUE")
+        update.message.reply_text(text=self.bot_msg['remove_city_msg_handler_true'].format(update.message.text))
+        
+        #Удаляем город
+        del user_city_list[int(self.find_city(update.message.text, user_city_list).get('key'))]
+        self.get_weather_start(update, context)
+
+        #Выходим из диалога
+        return ConversationHandler.END
+    
     def cancel(self, update, context) -> None:
         logger.info("user = %s - Command = %s - Handler = %s - Msg = %s",
             update.message.chat.username,
@@ -512,6 +588,16 @@ class weather_bot():
             fallbacks = [CommandHandler('cancel', self.cancel)]
         )
         self.bot_ds.add_handler(conv_handler_change_city)
+        
+        #Старт изменения города по команде /remove_city
+        conv_handler_remove_city = ConversationHandler(
+            entry_points = [CommandHandler('remove_city', self.remove_city)],
+            states = {
+                self.INPUT: [MessageHandler(Filters.text, self.remove_city_msg_handler)]
+            },
+            fallbacks = [CommandHandler('cancel', self.cancel)]
+        )
+        self.bot_ds.add_handler(conv_handler_remove_city)
         
         #Обработка нажатия кнопки с погодой
         conv_handler_get_weather = ConversationHandler(

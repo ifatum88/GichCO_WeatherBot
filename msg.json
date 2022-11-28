@@ -76,6 +76,14 @@
     "message": "По версии {broker_name},\nсегодня в городе {city_name} {weather[main]}.\nТемпература колеблется от {weather[temp_min]} до {weather[temp_max]}.\nСредняя температура {weather[temp]}, ощущается как {weather[feels_like]}.\nДавление {weather[pressure]} мм рт. ст., влажность {weather[humidity]}%."
   },
   {
+    "command": "remove_city",
+    "message": "🤖 Выбери город, который ты хотел бы удалить."
+  },
+  {
+    "command": "remove_city_msg_handler_true",
+    "message": "🤖 Хорошо, я удалил из списка город {}."
+  },
+  {
     "command": null,
     "message": null
   }

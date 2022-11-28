@@ -12,6 +12,10 @@
     "description": "Изменить город"
   },
   {
+    "cmd": "remove_city",
+    "description": "Удалить город"
+  },
+  {
     "cmd": "get",
     "description": "Просмотр контекста"
   }
