@@ -1,26 +1,20 @@
 # name = GichCO. Бот для погоды
-# user_name = gichcoweather_bot
+import logging
+import os
+import sys 
+os.chdir('/home/global_admin/weather_bot/')
+try:
+    
+    import main
 
-import sys
-import os 
-import main
+    format = '%(asctime)s - %(message)s'
+    logging.basicConfig(filename='\log_file_start.log', filemode='w', level=logging.INFO, format=format)
+    logger = logging.getLogger(__name__)
 
-bot = main.weather_bot()
-bot.run()
+    bot = main.weather_bot()
+    bot.run()
 
-
-#setattr(self,atr,val)
-
-# lst = [
-#     {'name':'city_1'},
-#     {'name':'city_2'},
-#     {'name':'city_3'},
-#     {'name':'city_4'},
-# ]
-
-# for i,city in enumerate(lst):
-#     if city['name'] == 'city_2':
-#         print (i)
-        
-# print (lst)
-# print (enumerate(lst).)
+except Exception as e:
+    pass
+    # logger.error(str(e))
+    

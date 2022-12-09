@@ -7,7 +7,7 @@ from telegram import *
 from telegram.ext import *
 
 
-logging.basicConfig(filename='\log_file_bot.log', format='%(asctime)s - %(message)s', level=logging.INFO)
+logging.basicConfig(filename='log_file_bot.log', format='%(asctime)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 """
